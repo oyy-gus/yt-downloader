@@ -112,7 +112,8 @@ export async function processAudioTrack({ url, inputPath, outputPath, format, qu
 
     let downloadedPath = null;
     try {
-      downloadedPath = await downloadAudioStream(url, tempBase);
+      const searchQuery = metadata ? (metadata.title || metadata.cleanedTitle || null) : null;
+      downloadedPath = await downloadAudioStream(url, tempBase, searchQuery);
 
       if (!downloadedPath || !fsSync.existsSync(downloadedPath)) {
         throw new Error('yt-dlp did not produce a valid audio file.');
@@ -135,7 +136,7 @@ export async function processAudioTrack({ url, inputPath, outputPath, format, qu
   throw new Error(`No audio source URL or file input provided for processing.`);
 }
 
-async function downloadAudioStream(url, tempBase) {
+async function downloadAudioStream(url, tempBase, searchTitle = null) {
   const attempts = [
     // Attempt 1: Standard yt-dlp with ejs solver, node js runtime & cookies
     [
@@ -164,6 +165,21 @@ async function downloadAudioStream(url, tempBase) {
     ]
   ];
 
+  if (searchTitle && searchTitle.trim().length > 0) {
+    // Attempt 3: Search fallback if video ID is deleted/unavailable or region-restricted
+    attempts.push([
+      '-f', 'bestaudio/best',
+      '--no-warnings',
+      '--no-playlist',
+      '--js-runtimes', 'node',
+      '--remote-components', 'ejs:github',
+      '--print', 'after_move:filepath',
+      '-o', `${tempBase}.%(ext)s`,
+      ...buildCookieArgs(),
+      `ytsearch1:${searchTitle.trim()}`
+    ]);
+  }
+
   let lastError = null;
 
   for (let i = 0; i < attempts.length; i++) {
@@ -174,10 +190,7 @@ async function downloadAudioStream(url, tempBase) {
       }
     } catch (err) {
       lastError = err;
-      // If error is not bot block, don't keep trying blindly
-      if (!err.message.includes('Sign in to confirm') && !err.message.includes('cookies')) {
-        break;
-      }
+      // Continue to next fallback attempt (e.g. search query fallback for unavailable/deleted videos)
     }
   }
 
