@@ -31,6 +31,18 @@ export class YouTubeProviderAdapter extends BaseProviderAdapter {
       return this.mockAdapter.analyzeUrl(urlInfo);
     }
 
+    const apiKey = (process.env.YOUTUBE_API_KEY || '').trim();
+    if (apiKey) {
+      try {
+        const apiMetadata = await this._fetchWithYouTubeDataApi(urlInfo, apiKey);
+        if (apiMetadata) {
+          return apiMetadata;
+        }
+      } catch (apiErr) {
+        console.warn(`[YouTubeProvider] YouTube Data API failed: ${apiErr.message}. Falling back to yt-dlp.`);
+      }
+    }
+
     try {
       const metadata = await this._executeYtDlpJson(urlInfo.normalizedUrl);
       if (!metadata) {
@@ -43,17 +55,106 @@ export class YouTubeProviderAdapter extends BaseProviderAdapter {
     }
   }
 
+  async _fetchWithYouTubeDataApi(urlInfo, apiKey) {
+    const listId = urlInfo.playlistId;
+    const videoId = urlInfo.videoId;
+
+    if (listId) {
+      // 1. Fetch Playlist Info
+      const plRes = await fetch(`https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&id=${listId}&key=${apiKey}`);
+      const plData = await plRes.json();
+      if (!plRes.ok || !plData.items || plData.items.length === 0) {
+        throw new Error(plData.error?.message || 'Playlist not found via YouTube Data API');
+      }
+
+      const playlistSnippet = plData.items[0].snippet;
+
+      // 2. Fetch Playlist Items
+      const itemsRes = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${listId}&maxResults=50&key=${apiKey}`);
+      const itemsData = await itemsRes.json();
+      if (!itemsRes.ok || !itemsData.items) {
+        throw new Error(itemsData.error?.message || 'Failed to fetch playlist items via YouTube Data API');
+      }
+
+      const entries = itemsData.items.map((item, idx) => {
+        const vId = item.snippet.resourceId?.videoId || item.contentDetails?.videoId;
+        const thumbnails = item.snippet.thumbnails;
+        const bestThumb = thumbnails?.high?.url || thumbnails?.medium?.url || thumbnails?.default?.url || `https://i.ytimg.com/vi/${vId}/hqdefault.jpg`;
+
+        return {
+          id: vId || `track-${idx}`,
+          title: item.snippet.title || 'Untitled Track',
+          artist: item.snippet.videoOwnerChannelTitle || item.snippet.channelTitle || null,
+          channel: item.snippet.videoOwnerChannelTitle || item.snippet.channelTitle || null,
+          durationSec: 0,
+          thumbnail: bestThumb,
+          url: vId ? `https://www.youtube.com/watch?v=${vId}` : null
+        };
+      });
+
+      return {
+        isDemo: false,
+        type: 'playlist',
+        title: playlistSnippet.title || 'YouTube Playlist',
+        channel: playlistSnippet.channelTitle || 'YouTube Channel',
+        thumbnail: playlistSnippet.thumbnails?.high?.url || entries[0]?.thumbnail || null,
+        totalEntries: entries.length,
+        entries
+      };
+    }
+
+    if (videoId) {
+      // Fetch Single Video
+      const vRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${videoId}&key=${apiKey}`);
+      const vData = await vRes.json();
+      if (!vRes.ok || !vData.items || vData.items.length === 0) {
+        throw new Error(vData.error?.message || 'Video not found via YouTube Data API');
+      }
+
+      const snippet = vData.items[0].snippet;
+      const thumbnails = snippet.thumbnails;
+      const bestThumb = thumbnails?.high?.url || thumbnails?.medium?.url || thumbnails?.default?.url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+
+      return {
+        isDemo: false,
+        type: 'track',
+        title: snippet.title || 'YouTube Track',
+        artist: snippet.channelTitle || null,
+        channel: snippet.channelTitle || null,
+        durationSec: 0,
+        thumbnail: bestThumb,
+        totalEntries: 1,
+        entries: [
+          {
+            id: videoId,
+            title: snippet.title || 'YouTube Track',
+            artist: snippet.channelTitle || null,
+            channel: snippet.channelTitle || null,
+            durationSec: 0,
+            thumbnail: bestThumb,
+            url: urlInfo.normalizedUrl
+          }
+        ]
+      };
+    }
+
+    return null;
+  }
+
   _executeYtDlpJson(url) {
     return new Promise((resolve, reject) => {
       const browserCookie = (process.env.COOKIES_FROM_BROWSER || '').trim().toLowerCase();
-      const cookiesFilePath = path.join(process.cwd(), 'cookies.txt');
+      const rootCookies = path.join(process.cwd(), 'cookies.txt');
+      const backendCookies = path.join(process.cwd(), 'backend', 'cookies.txt');
 
       const args = ['--dump-single-json', '--flat-playlist', '--no-warnings'];
 
       if (browserCookie && browserCookie.length > 0) {
         args.push('--cookies-from-browser', browserCookie);
-      } else if (fs.existsSync(cookiesFilePath)) {
-        args.push('--cookies', cookiesFilePath);
+      } else if (fs.existsSync(rootCookies)) {
+        args.push('--cookies', rootCookies);
+      } else if (fs.existsSync(backendCookies)) {
+        args.push('--cookies', backendCookies);
       }
 
       args.push(url);

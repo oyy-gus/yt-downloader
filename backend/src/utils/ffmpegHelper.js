@@ -60,18 +60,22 @@ const ytdlpExe = resolveExecutable('yt-dlp');
  */
 function buildCookieArgs() {
   const browserCookie = (process.env.COOKIES_FROM_BROWSER || '').trim().toLowerCase();
-  const cookiesFilePath = path.join(process.cwd(), 'cookies.txt');
+  const rootCookies = path.join(process.cwd(), 'cookies.txt');
+  const backendCookies = path.join(process.cwd(), 'backend', 'cookies.txt');
 
   if (browserCookie && browserCookie.length > 0) {
-    // Use yt-dlp native browser cookie extraction
     return ['--cookies-from-browser', browserCookie];
   }
 
-  if (fsSync.existsSync(cookiesFilePath)) {
-    return ['--cookies', cookiesFilePath];
+  if (fsSync.existsSync(rootCookies)) {
+    return ['--cookies', rootCookies];
   }
 
-  return []; // No cookies configured
+  if (fsSync.existsSync(backendCookies)) {
+    return ['--cookies', backendCookies];
+  }
+
+  return [];
 }
 
 /**
@@ -125,31 +129,54 @@ export async function processAudioTrack({ url, inputPath, outputPath, format, qu
   throw new Error(`No audio source URL or file input provided for processing.`);
 }
 
-/**
- * Downloads the best available audio stream via yt-dlp.
- * Returns the actual path of the downloaded file (with resolved extension).
- */
 async function downloadAudioStream(url, tempBase) {
-  return new Promise((resolve, reject) => {
-    const cookiesPath = path.join(process.cwd(), 'cookies.txt');
-
-    // yt-dlp writes stdout line "[download] Destination: <path>" when done
-    // We use --print filename after download to get the exact output path,
-    // but a simpler approach: use a fixed temp path with a known extension.
-    // We pass %(ext)s so yt-dlp fills in the correct extension.
-    const tempOutputTemplate = `${tempBase}.%(ext)s`;
-
-    const args = [
+  const attempts = [
+    // Attempt 1: Standard yt-dlp with cookie args & Node.js JS runtime if available
+    [
       '-f', 'bestaudio/best',
       '--no-warnings',
       '--no-playlist',
-      '--print', 'after_move:filepath',  // prints actual output path after download
-      '-o', tempOutputTemplate,
-      ...buildCookieArgs()
-    ];
+      '--js-runtimes', 'node',
+      '--print', 'after_move:filepath',
+      '-o', `${tempBase}.%(ext)s`,
+      ...buildCookieArgs(),
+      url
+    ],
+    // Attempt 2: Fallback with player_client=android,mweb
+    [
+      '-f', 'bestaudio/best',
+      '--no-warnings',
+      '--no-playlist',
+      '--extractor-args', 'youtube:player_client=android,mweb',
+      '--print', 'after_move:filepath',
+      '-o', `${tempBase}.%(ext)s`,
+      ...buildCookieArgs(),
+      url
+    ]
+  ];
 
-    args.push(url);
+  let lastError = null;
 
+  for (let i = 0; i < attempts.length; i++) {
+    try {
+      const downloadedPath = await _executeYtDlpDownload(attempts[i], tempBase);
+      if (downloadedPath && fsSync.existsSync(downloadedPath)) {
+        return downloadedPath;
+      }
+    } catch (err) {
+      lastError = err;
+      // If error is not bot block, don't keep trying blindly
+      if (!err.message.includes('Sign in to confirm') && !err.message.includes('cookies')) {
+        break;
+      }
+    }
+  }
+
+  throw lastError || new Error('All audio download attempts failed.');
+}
+
+function _executeYtDlpDownload(args, tempBase) {
+  return new Promise((resolve, reject) => {
     const proc = spawn(ytdlpExe, args);
     let stdout = '';
     let stderr = '';
@@ -159,13 +186,11 @@ async function downloadAudioStream(url, tempBase) {
 
     proc.on('close', async code => {
       if (code === 0) {
-        // Try to get path from stdout (printed by --print filepath)
         const printedPath = stdout.trim().split('\n').pop()?.trim();
         if (printedPath && fsSync.existsSync(printedPath)) {
           return resolve(printedPath);
         }
 
-        // Fallback: scan directory for temp file matching our base prefix
         const dir = path.dirname(tempBase);
         const baseName = path.basename(tempBase);
         try {
