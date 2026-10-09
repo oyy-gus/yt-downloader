@@ -42,11 +42,17 @@ export function validateAudioSettings(format = 'mp3', quality = '320') {
 }
 
 function resolveExecutable(exeName) {
-  const localExeWin = path.join(process.cwd(), `${exeName}.exe`);
-  if (fsSync.existsSync(localExeWin)) return localExeWin;
+  const rootExe = path.join(process.cwd(), `${exeName}.exe`);
+  if (fsSync.existsSync(rootExe)) return rootExe;
 
-  const localBin = path.join(process.cwd(), exeName);
-  if (fsSync.existsSync(localBin)) return localBin;
+  const backendExe = path.join(process.cwd(), 'backend', `${exeName}.exe`);
+  if (fsSync.existsSync(backendExe)) return backendExe;
+
+  const rootBin = path.join(process.cwd(), exeName);
+  if (fsSync.existsSync(rootBin)) return rootBin;
+
+  const backendBin = path.join(process.cwd(), 'backend', exeName);
+  if (fsSync.existsSync(backendBin)) return backendBin;
 
   return exeName;
 }
@@ -131,12 +137,13 @@ export async function processAudioTrack({ url, inputPath, outputPath, format, qu
 
 async function downloadAudioStream(url, tempBase) {
   const attempts = [
-    // Attempt 1: Standard yt-dlp with cookie args & Node.js JS runtime if available
+    // Attempt 1: Standard yt-dlp with ejs solver, node js runtime & cookies
     [
       '-f', 'bestaudio/best',
       '--no-warnings',
       '--no-playlist',
       '--js-runtimes', 'node',
+      '--remote-components', 'ejs:github',
       '--print', 'after_move:filepath',
       '-o', `${tempBase}.%(ext)s`,
       ...buildCookieArgs(),
@@ -147,6 +154,8 @@ async function downloadAudioStream(url, tempBase) {
       '-f', 'bestaudio/best',
       '--no-warnings',
       '--no-playlist',
+      '--js-runtimes', 'node',
+      '--remote-components', 'ejs:github',
       '--extractor-args', 'youtube:player_client=android,mweb',
       '--print', 'after_move:filepath',
       '-o', `${tempBase}.%(ext)s`,
