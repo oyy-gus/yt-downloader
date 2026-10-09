@@ -10,6 +10,27 @@ import Footer from '../components/Footer';
 import { AlertCircle } from 'lucide-react';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_FALLBACK_URL = 'http://127.0.0.1:5000/api';
+
+let activeApiBase = API_BASE_URL;
+
+async function apiFetch(endpoint, options = {}) {
+  const primaryUrl = `${activeApiBase}${endpoint}`;
+  try {
+    const res = await fetch(primaryUrl, options);
+    return res;
+  } catch (err) {
+    const altBase = activeApiBase === API_BASE_URL ? API_FALLBACK_URL : API_BASE_URL;
+    const fallbackUrl = `${altBase}${endpoint}`;
+    try {
+      const altRes = await fetch(fallbackUrl, options);
+      activeApiBase = altBase; // switch active base URL on success
+      return altRes;
+    } catch (_) {
+      throw err; // throw original error if both fail
+    }
+  }
+}
 
 export default function Home() {
   const [settings, setSettings] = useState({
@@ -39,7 +60,7 @@ export default function Home() {
     setAnalysisResult(null);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/analyze`, {
+      const res = await apiFetch(`/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, cleanerMode: settings.cleanerMode })
@@ -87,7 +108,7 @@ export default function Home() {
     setErrorMsg(null);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/jobs`, {
+      const res = await apiFetch(`/jobs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

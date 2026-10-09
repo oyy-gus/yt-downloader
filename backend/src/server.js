@@ -19,7 +19,7 @@ async function bootstrap() {
 
   const server = http.createServer(app);
 
-  server.listen(PORT, () => {
+  server.listen(PORT, '0.0.0.0', () => {
     console.log(`==================================================`);
     console.log(` 🎵 MAXISTRONG BACKEND RUNNING ON PORT ${PORT}`);
     console.log(` Environment: ${process.env.NODE_ENV || 'development'}`);
