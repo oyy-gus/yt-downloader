@@ -60,13 +60,24 @@ const staticDir = fs.existsSync(publicHtmlPath)
 
 if (staticDir) {
   // Serve static assets (_next/, images, etc.)
-  app.use(express.static(staticDir));
+  app.use(express.static(staticDir, {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+      }
+    }
+  }));
 
   // Catch-all: serve index.html for all non-API routes (SPA support)
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api')) return next();
     const indexPath = path.join(staticDir, 'index.html');
     if (fs.existsSync(indexPath)) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       return res.sendFile(indexPath);
     }
     return next();
