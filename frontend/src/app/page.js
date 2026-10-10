@@ -10,7 +10,7 @@ import Footer from '../components/Footer';
 import { AlertCircle } from 'lucide-react';
 
 function getNormalizedApiUrl() {
-  let rawUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+  let rawUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
   rawUrl = rawUrl.trim().replace(/\/+$/, '');
   if (!rawUrl.endsWith('/api')) {
     rawUrl = `${rawUrl}/api`;

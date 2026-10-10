@@ -47,6 +47,26 @@ app.use('/api/jobs', jobsRouter);
 app.use('/api/files', filesRouter);
 app.use('/api/health', healthRouter);
 
+import fs from 'fs';
+
+// Serve Static Frontend (Single-Host Deployment)
+const publicHtmlPath = path.join(process.cwd(), 'public_html');
+const frontendOutPath = path.join(process.cwd(), '..', 'frontend', 'out');
+
+const staticDir = fs.existsSync(publicHtmlPath)
+  ? publicHtmlPath
+  : fs.existsSync(frontendOutPath)
+    ? frontendOutPath
+    : null;
+
+if (staticDir) {
+  app.use(express.static(staticDir));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(staticDir, 'index.html'));
+  });
+}
+
 // Global Error Handler
 app.use(errorHandler);
 
