@@ -19,6 +19,9 @@ import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
 
+// Trust reverse proxy headers (Koyeb, Vercel, Cloudflare)
+app.set('trust proxy', 1);
+
 // Security Headers
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }
