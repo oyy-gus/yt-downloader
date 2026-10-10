@@ -7,6 +7,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 dotenv.config();
 dotenv.config({ path: path.join(process.cwd(), 'backend', '.env') });
 
@@ -19,7 +20,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
 
-// Trust reverse proxy headers (Koyeb, Vercel, Cloudflare)
+// Trust reverse proxy headers (Koyeb, Cloudflare, etc.)
 app.set('trust proxy', 1);
 
 // Security Headers
@@ -41,13 +42,11 @@ app.use(express.urlencoded({ extended: true }));
 // Apply Rate Limiter to API routes
 app.use('/api', apiRateLimiter);
 
-// API Routes
+// API Routes (MUST be registered before static/catch-all)
 app.use('/api/analyze', analyzeRouter);
 app.use('/api/jobs', jobsRouter);
 app.use('/api/files', filesRouter);
 app.use('/api/health', healthRouter);
-
-import fs from 'fs';
 
 // Serve Static Frontend (Single-Host Deployment)
 const publicHtmlPath = path.join(process.cwd(), 'public_html');
@@ -60,14 +59,21 @@ const staticDir = fs.existsSync(publicHtmlPath)
     : null;
 
 if (staticDir) {
+  // Serve static assets (_next/, images, etc.)
   app.use(express.static(staticDir));
+
+  // Catch-all: serve index.html for all non-API routes (SPA support)
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api')) return next();
-    res.sendFile(path.join(staticDir, 'index.html'));
+    const indexPath = path.join(staticDir, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      return res.sendFile(indexPath);
+    }
+    return next();
   });
 }
 
-// Global Error Handler
+// Global Error Handler (MUST be last)
 app.use(errorHandler);
 
 export default app;
