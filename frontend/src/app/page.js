@@ -9,27 +9,20 @@ import JobProgressCard from '../components/JobProgressCard';
 import Footer from '../components/Footer';
 import { AlertCircle } from 'lucide-react';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-const API_FALLBACK_URL = 'http://127.0.0.1:5000/api';
+function getNormalizedApiUrl() {
+  let rawUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+  rawUrl = rawUrl.trim().replace(/\/+$/, '');
+  if (!rawUrl.endsWith('/api')) {
+    rawUrl = `${rawUrl}/api`;
+  }
+  return rawUrl;
+}
 
-let activeApiBase = API_BASE_URL;
+const API_BASE_URL = getNormalizedApiUrl();
 
 async function apiFetch(endpoint, options = {}) {
-  const primaryUrl = `${activeApiBase}${endpoint}`;
-  try {
-    const res = await fetch(primaryUrl, options);
-    return res;
-  } catch (err) {
-    const altBase = activeApiBase === API_BASE_URL ? API_FALLBACK_URL : API_BASE_URL;
-    const fallbackUrl = `${altBase}${endpoint}`;
-    try {
-      const altRes = await fetch(fallbackUrl, options);
-      activeApiBase = altBase; // switch active base URL on success
-      return altRes;
-    } catch (_) {
-      throw err; // throw original error if both fail
-    }
-  }
+  const url = `${API_BASE_URL}${endpoint}`;
+  return fetch(url, options);
 }
 
 export default function Home() {

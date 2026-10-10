@@ -7,8 +7,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import path from 'path';
+dotenv.config();
 dotenv.config({ path: path.join(process.cwd(), 'backend', '.env') });
-dotenv.config(); // fallback to root .env if present
 
 import analyzeRouter from './routes/analyze.js';
 import jobsRouter from './routes/jobs.js';
