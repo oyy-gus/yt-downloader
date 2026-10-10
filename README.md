@@ -18,44 +18,57 @@ Aplikasi web modern berkinerja tinggi untuk menganalisis metadata lagu/playlist 
   - Konversi MP3 (320kbps, 256kbps, 192kbps, 128kbps) atau format *Original Audio*.
   - Embedding ID3 Metadata (Title, Artist, Album, Thumbnail).
   - Ekspor berkas ZIP otomatis untuk batch playlist.
-- **📦 Single-Host Ready Architecture**:
-  - Dapat di-deploy sebagai **1 Single Server / 1 Host** di Koyeb (Frontend Next.js & Express API menyatu dalam 1 URL & port tanpa masalah CORS).
+- **📦 Single-Host Ready**:
+  - Deploy seluruh aplikasi (Frontend Next.js + Express API) di **1 server / 1 URL** di Koyeb tanpa masalah CORS.
+  - Auto-deteksi lingkungan: di localhost dev, API dipanggil ke `localhost:5000`; di produksi, menggunakan path relatif `/api`.
 
 ---
 
 ## 💻 Panduan Instalasi & Penggunaan di Localhost
 
 ### 1. Prasyarat Sistem
-Pastikan perangkat komputer Anda telah terpasang:
+
+Pastikan sudah terpasang:
 - **Node.js** (v20 atau v22+)
-- **FFmpeg** (Untuk konversi & ID3 metadata audio)
-- **yt-dlp** (Untuk ekstraksi stream media YouTube)
-- **Python 3** (Dibutuhkan oleh yt-dlp)
+- **FFmpeg** (konversi & ID3 metadata audio)
+- **yt-dlp** (ekstraksi stream media YouTube)
+- **Python 3** (dibutuhkan oleh yt-dlp)
 
 ---
 
-### 2. Cara Memasang FFmpeg & yt-dlp di Windows (Localhost)
+### 2. Cara Memasang FFmpeg & yt-dlp
 
-#### Opsi A: Otomatis via PIP (Direkomendasikan)
-Buka Terminal / PowerShell sebagai Administrator:
+#### ✅ Opsi A — Via PIP (Termudah, PATH otomatis diatur)
 
+Buka Terminal / PowerShell:
 ```powershell
-# 1. Install yt-dlp
 pip install yt-dlp
-
-# 2. Install ffmpeg
 pip install ffmpeg-downloader
 ffdl install
 ```
 
-#### Opsi B: Menyimpan Executable Langsung di Folder `backend/`
-Jika tidak ingin mengatur PATH Windows:
-1. Unduh `ffmpeg.exe` dan `yt-dlp.exe`.
-2. Taruh berkas `ffmpeg.exe` dan `yt-dlp.exe` langsung di dalam folder `backend/`.
+> Tidak perlu mengatur PATH Windows secara manual. Setelah `pip install`, kedua perintah `yt-dlp` dan `ffmpeg` langsung dikenali oleh sistem.
+
+#### 📁 Opsi B — Taruh `.exe` Langsung di Folder `backend/`
+
+1. Unduh [`yt-dlp.exe`](https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe)
+2. Unduh [`ffmpeg.exe` + `ffprobe.exe`](https://github.com/BtbN/FFmpeg-Builds/releases) (pilih `ffmpeg-n*-win64-gpl.zip`, ekstrak folder `bin/`)
+3. Taruh `yt-dlp.exe`, `ffmpeg.exe`, dan `ffprobe.exe` langsung di dalam folder `backend/`:
+
+```text
+youtube-downloader/
+└── backend/
+    ├── ffmpeg.exe      ← taruh di sini
+    ├── ffprobe.exe     ← taruh di sini
+    ├── yt-dlp.exe      ← taruh di sini
+    └── src/
+```
+
+> Aplikasi secara otomatis mendeteksi file `.exe` di folder `backend/` tanpa perlu mengatur PATH Windows.
 
 ---
 
-### 3. Langkah Instalasi Proyek
+### 3. Instalasi Proyek
 
 #### A. Kloning Repositori
 ```bash
@@ -69,7 +82,7 @@ cd backend
 npm install
 ```
 
-Buat berkas `backend/.env` (atau salin dari `.env.example`):
+Buat berkas `backend/.env` (salin dari `.env.example`):
 ```env
 PORT=5000
 NODE_ENV=development
@@ -79,10 +92,10 @@ YOUTUBE_API_KEY=               # Opsional: API Key YouTube Data API v3
 COOKIES_FROM_BROWSER=          # Opsional: edge, chrome, atau firefox
 ```
 
-*(Opsional tetapi Direkomendasikan)* **Menyiapkan YouTube Cookies**:
-1. Pasang ekstensi browser **Get cookies.txt LOCALLY**.
-2. Buka [youtube.com](https://www.youtube.com) (posisi login akun).
-3. Export cookies dan simpan dengan nama `cookies.txt` di dalam folder `backend/cookies.txt`.
+*(Opsional tapi direkomendasikan)* **Siapkan YouTube Cookies** agar terhindar dari pembatasan bot YouTube:
+1. Pasang ekstensi **Get cookies.txt LOCALLY** di browser.
+2. Buka [youtube.com](https://www.youtube.com) dalam kondisi ter-login.
+3. Klik ekstensi → Export cookies → simpan sebagai `backend/cookies.txt`.
 
 #### C. Setup Frontend
 ```bash
@@ -92,52 +105,62 @@ npm install
 
 ---
 
-### 4. Menjalankan Aplikasi di Localhost
+### 4. Jalankan Aplikasi
 
-#### Jalankan Backend (Port 5000):
+**Terminal 1 — Backend (Port 5000):**
 ```bash
 cd backend
 npm run dev
 ```
 
-#### Jalankan Frontend (Port 3000):
+**Terminal 2 — Frontend (Port 3000):**
 ```bash
 cd frontend
 npm run dev
 ```
 
-Buka browser Anda di: **`http://localhost:3000`**
+Buka browser di: **`http://localhost:3000`**
+
+> Frontend akan otomatis mendeteksi lingkungan development dan mengarahkan semua request API ke `http://localhost:5000/api`.
 
 ---
 
-### 🐳 Alternatif: Menjalankan Lokal via Docker
+### 🐳 Alternatif: Menjalankan via Docker (Single-Host Lokal)
 
-Jika Anda memiliki **Docker Desktop** di komputer Anda, Anda dapat menjalankan seluruh aplikasi (Frontend + Backend + FFmpeg + yt-dlp) hanya dengan 1 perintah:
-
+Jika sudah memiliki **Docker Desktop**:
 ```bash
 docker build -t maxistrong-downloader .
 docker run -p 5000:5000 maxistrong-downloader
 ```
 
-Buka browser di **`http://localhost:5000`**.
+Buka browser di: **`http://localhost:5000`**
 
 ---
 
-## ☁️ Panduan Deploy 1 Host di Koyeb (Single Host)
+## ☁️ Panduan Deploy 1 Host ke Koyeb
 
-Anda **tidak memerlukan Vercel** lagi. Aplikasi Frontend & Backend dapat disatukan di **1 Koyeb Web Service**:
+Frontend dan Backend digabung dalam **1 Koyeb Web Service** menggunakan Dockerfile multi-stage. Tidak perlu Vercel.
+
+### Langkah Deploy:
 
 1. Login ke [Koyeb Dashboard](https://app.koyeb.com).
-2. Buat **Web Service Baru** dan sambungkan ke repositori GitHub `oyy-gus/youtube-downloader`.
-3. Atur konfigurasi deployment:
-   - **Builder Type**: `Dockerfile`
-   - **Work Directory**: `/` (Root directory)
+2. Buat **Web Service** baru → sambungkan repositori GitHub `oyy-gus/youtube-downloader`.
+3. Konfigurasi deployment:
+   - **Builder**: `Dockerfile`
+   - **Dockerfile Path**: `Dockerfile` *(di root repositori)*
    - **Port**: `5000`
 4. Masukkan **Environment Variables**:
-   - `PORT`: `5000`
-   - `NODE_ENV`: `production`
-   - `YOUTUBE_API_KEY`: *(opsional API key)*
-5. Klik **Deploy**. Koyeb akan mem-build frontend Next.js dan backend Express menjadi 1 URL terpadu!
+   ```env
+   PORT=5000
+   NODE_ENV=production
+   YOUTUBE_API_KEY=AIzaSy...   # Opsional, tapi mempercepat analisis playlist
+   ```
+5. Klik **Deploy** — Koyeb akan mem-build frontend Next.js dan backend Express menjadi 1 container Docker!
+
+Setelah deploy selesai, seluruh aplikasi aktif di 1 URL Koyeb, misalnya:
+```
+https://maxistrong-downloader.koyeb.app
+```
 
 ---
 
@@ -149,7 +172,7 @@ Anda **tidak memerlukan Vercel** lagi. Aplikasi Frontend & Backend dapat disatuk
 | `POST` | `/api/analyze` | Menganalisis URL playlist/video & menghasilkan preview judul clean |
 | `POST` | `/api/jobs` | Membuat job antrean pengunduhan/konversi audio |
 | `GET` | `/api/jobs/:jobId` | Mengambil status & kemajuan job |
-| `GET` | `/api/jobs/:jobId/events` | Stream Server-Sent Events (SSE) untuk progress real-time |
+| `GET` | `/api/jobs/:jobId/events` | Stream SSE (Server-Sent Events) untuk progress real-time |
 | `GET` | `/api/files/:jobId/zip` | Mengunduh arsip ZIP playlist |
 | `GET` | `/api/files/:jobId/track/:trackId` | Mengunduh satu berkas MP3 lagu |
 
@@ -169,15 +192,18 @@ youtube-downloader/
 │   │   ├── storage/          # Temp Storage Manager
 │   │   └── utils/            # FFmpeg & yt-dlp Audio Conversion Helper
 │   ├── .env                  # Konfigurasi Environment Backend
-│   ├── Dockerfile            # Dockerfile Backend
+│   ├── cookies.txt           # (Opsional) YouTube cookies untuk bypass bot check
+│   ├── yt-dlp.exe            # (Opsional) Binary lokal jika tidak via PATH
+│   ├── ffmpeg.exe            # (Opsional) Binary lokal jika tidak via PATH
 │   └── package.json
 ├── frontend/                 # Aplikasi Web Client (Next.js 16)
 │   ├── src/
 │   │   ├── app/              # Next.js App Router & Layout
 │   │   └── components/       # UI Components (UrlInput, Preview, JobProgress)
+│   ├── postcss.config.mjs    # PostCSS config untuk Tailwind CSS v4
 │   ├── package.json
-│   └── next.config.mjs
-├── Dockerfile                # Multi-stage Dockerfile untuk Single-Host Deployment
+│   └── next.config.mjs       # Next.js config (static export untuk single-host)
+├── Dockerfile                # Multi-stage Dockerfile untuk Single-Host Koyeb
 └── README.md
 ```
 

@@ -10,18 +10,23 @@ import Footer from '../components/Footer';
 import { AlertCircle } from 'lucide-react';
 
 function getNormalizedApiUrl() {
-  let rawUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-  rawUrl = rawUrl.trim().replace(/\/+$/, '');
-  if (!rawUrl.endsWith('/api')) {
-    rawUrl = `${rawUrl}/api`;
+  // In development (npm run dev), frontend runs on :3000 and backend on :5000
+  // In production (single-host Koyeb), both are served from the same server
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    let rawUrl = process.env.NEXT_PUBLIC_API_URL.trim().replace(/\/+$/, '');
+    if (!rawUrl.endsWith('/api')) rawUrl = `${rawUrl}/api`;
+    return rawUrl;
   }
-  return rawUrl;
+  // Auto-detect: if running in browser on port 3000, point to backend port 5000
+  if (typeof window !== 'undefined' && window.location.port === '3000') {
+    return 'http://localhost:5000/api';
+  }
+  // Production single-host: use relative path
+  return '/api';
 }
 
-const API_BASE_URL = getNormalizedApiUrl();
-
 async function apiFetch(endpoint, options = {}) {
-  const url = `${API_BASE_URL}${endpoint}`;
+  const url = `${getNormalizedApiUrl()}${endpoint}`;
   return fetch(url, options);
 }
 
@@ -129,7 +134,7 @@ export default function Home() {
   };
 
   const connectSseStream = (jobId) => {
-    const eventSource = new EventSource(`${API_BASE_URL}/jobs/${jobId}/events`);
+    const eventSource = new EventSource(`${getNormalizedApiUrl()}/jobs/${jobId}/events`);
 
     eventSource.onmessage = (event) => {
       try {
@@ -154,7 +159,7 @@ export default function Home() {
   const handleCancelJob = async () => {
     if (!activeJob) return;
     try {
-      await fetch(`${API_BASE_URL}/jobs/${activeJob.id}/cancel`, { method: 'POST' });
+      await fetch(`${getNormalizedApiUrl()}/jobs/${activeJob.id}/cancel`, { method: 'POST' });
     } catch (e) {
       console.error('Cancel job error:', e);
     }
@@ -162,12 +167,12 @@ export default function Home() {
 
   const handleDownloadTrack = (trackId) => {
     if (!activeJob) return;
-    window.open(`${API_BASE_URL}/files/${activeJob.id}/track/${trackId}`, '_blank');
+    window.open(`${getNormalizedApiUrl()}/files/${activeJob.id}/track/${trackId}`, '_blank');
   };
 
   const handleDownloadZip = () => {
     if (!activeJob) return;
-    window.open(`${API_BASE_URL}/files/${activeJob.id}/zip`, '_blank');
+    window.open(`${getNormalizedApiUrl()}/files/${activeJob.id}/zip`, '_blank');
   };
 
   return (
