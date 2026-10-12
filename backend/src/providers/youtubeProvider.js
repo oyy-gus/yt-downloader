@@ -20,8 +20,14 @@ export class YouTubeProviderAdapter extends BaseProviderAdapter {
     const localExe = path.join(process.cwd(), 'yt-dlp.exe');
     if (fs.existsSync(localExe)) return localExe;
 
+    const backendExe = path.join(process.cwd(), 'backend', 'yt-dlp.exe');
+    if (fs.existsSync(backendExe)) return backendExe;
+
     const localBin = path.join(process.cwd(), 'yt-dlp');
     if (fs.existsSync(localBin)) return localBin;
+
+    const backendBin = path.join(process.cwd(), 'backend', 'yt-dlp');
+    if (fs.existsSync(backendBin)) return backendBin;
 
     return 'yt-dlp';
   }
@@ -46,12 +52,15 @@ export class YouTubeProviderAdapter extends BaseProviderAdapter {
     try {
       const metadata = await this._executeYtDlpJson(urlInfo.normalizedUrl);
       if (!metadata) {
-        return this.mockAdapter.analyzeUrl(urlInfo);
+        throw new Error('Tidak ada metadata yang dikembalikan dari YouTube.');
       }
       return this._formatYtDlpMetadata(metadata, urlInfo);
     } catch (err) {
-      console.warn(`[YouTubeProvider] yt-dlp execution failed (${this.executable}). Falling back to Mock Mode: ${err.message}`);
-      return this.mockAdapter.analyzeUrl(urlInfo);
+      if (this.forceMock) {
+        console.warn(`[YouTubeProvider] yt-dlp execution failed (${this.executable}). DEV_MOCK_MODE=true, falling back to Mock Mode: ${err.message}`);
+        return this.mockAdapter.analyzeUrl(urlInfo);
+      }
+      throw new Error(`Gagal membaca informasi URL YouTube: ${err.message}`);
     }
   }
 
@@ -147,7 +156,13 @@ export class YouTubeProviderAdapter extends BaseProviderAdapter {
       const rootCookies = path.join(process.cwd(), 'cookies.txt');
       const backendCookies = path.join(process.cwd(), 'backend', 'cookies.txt');
 
-      const args = ['--dump-single-json', '--flat-playlist', '--no-warnings'];
+      const args = [
+        '--dump-single-json',
+        '--flat-playlist',
+        '--no-warnings',
+        '--js-runtimes', 'node',
+        '--remote-components', 'ejs:github'
+      ];
 
       if (browserCookie && browserCookie.length > 0) {
         args.push('--cookies-from-browser', browserCookie);

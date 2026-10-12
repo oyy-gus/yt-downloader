@@ -8,6 +8,7 @@ export default function JobProgressCard({ job, onCancelJob, onDownloadTrack, onD
 
   const isFinished = ['completed', 'failed', 'cancelled'].includes(job.status);
   const completedTracksCount = job.tracks.filter(t => t.status === 'completed').length;
+  const failedTracksCount = job.tracks.filter(t => t.status === 'failed').length;
 
   return (
     <div className="w-full glass-card rounded-2xl p-6 border border-white/10 space-y-6">
@@ -31,34 +32,21 @@ export default function JobProgressCard({ job, onCancelJob, onDownloadTrack, onD
             </span>
           </div>
           <p className="text-xs text-gray-400 mt-1">
-            {job.title} • {job.format.toUpperCase()} ({job.quality} kbps)
+            {job.title} &bull; {job.format.toUpperCase()} ({job.quality} kbps)
           </p>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-3">
-          {!isFinished && (
-            <button
-              type="button"
-              onClick={onCancelJob}
-              className="px-4 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 font-medium text-xs flex items-center gap-1.5 transition"
-            >
-              <Ban className="w-3.5 h-3.5" />
-              <span>Cancel Job</span>
-            </button>
-          )}
-
-          {job.hasZip && (
-            <button
-              type="button"
-              onClick={onDownloadZip}
-              className="px-5 py-2 rounded-xl gradient-bg text-white font-semibold text-xs hover:opacity-90 active:scale-95 transition shadow-lg shadow-indigo-500/25 flex items-center gap-2"
-            >
-              <FileArchive className="w-4 h-4" />
-              <span>Export All as ZIP</span>
-            </button>
-          )}
-        </div>
+        {/* Cancel Button — hanya saat proses berjalan */}
+        {!isFinished && (
+          <button
+            type="button"
+            onClick={onCancelJob}
+            className="px-4 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 font-medium text-xs flex items-center gap-1.5 transition"
+          >
+            <Ban className="w-3.5 h-3.5" />
+            <span>Cancel Job</span>
+          </button>
+        )}
       </div>
 
       {/* Progress Bar */}
@@ -101,10 +89,15 @@ export default function JobProgressCard({ job, onCancelJob, onDownloadTrack, onD
                 <p className="text-[11px] text-gray-500 font-mono truncate">
                   {track.filename}
                 </p>
+                {track.error && (
+                  <p className="text-[11px] text-rose-400 font-medium truncate mt-0.5" title={track.error}>
+                    &#9888;&#65039; {track.error}
+                  </p>
+                )}
               </div>
             </div>
 
-            {/* Individual Download Button */}
+            {/* Tombol download per lagu */}
             {track.status === 'completed' && (
               <button
                 type="button"
@@ -118,6 +111,34 @@ export default function JobProgressCard({ job, onCancelJob, onDownloadTrack, onD
           </div>
         ))}
       </div>
+
+      {/* ── Download All ZIP Banner — muncul setelah selesai & ada track sukses ── */}
+      {isFinished && job.hasZip && completedTracksCount > 0 && (
+        <div className="rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-purple-500/5 p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-center sm:text-left space-y-1">
+            <p className="text-sm font-bold text-indigo-300 flex items-center justify-center sm:justify-start gap-2">
+              <FileArchive className="w-4 h-4" />
+              Semua lagu siap diunduh!
+            </p>
+            <p className="text-xs text-gray-400">
+              <span className="text-emerald-400 font-semibold">{completedTracksCount} lagu berhasil</span>
+              {failedTracksCount > 0 && (
+                <span className="text-rose-400 font-semibold"> &bull; {failedTracksCount} gagal</span>
+              )}
+              {' '}— dikemas dalam 1 file ZIP beserta ringkasan download.
+            </p>
+          </div>
+          <button
+            type="button"
+            id="btn-download-all-zip"
+            onClick={onDownloadZip}
+            className="w-full sm:w-auto px-6 py-3 rounded-xl gradient-bg text-white font-bold text-sm hover:opacity-90 active:scale-95 transition-all shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2 shrink-0"
+          >
+            <FileArchive className="w-5 h-5" />
+            Download All as ZIP
+          </button>
+        </div>
+      )}
     </div>
   );
 }

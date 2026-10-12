@@ -18,8 +18,6 @@ backend/tmp/
 *.log
 analyze_res.json
 tmp_*.json
-cookies.txt
-backend/cookies.txt
 
 # Executables
 *.exe
