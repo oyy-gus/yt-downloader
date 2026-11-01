@@ -149,30 +149,67 @@ export class YouTubeProviderAdapter extends BaseProviderAdapter {
     return null;
   }
 
-  private _executeYtDlpJson(url: string): Promise<any> {
-    return new Promise((resolve, reject) => {
-      const browserCookie = (process.env.COOKIES_FROM_BROWSER || '').trim().toLowerCase();
-      const rootCookies = path.join(process.cwd(), 'cookies.txt');
-      const backendCookies = path.join(process.cwd(), 'backend', 'cookies.txt');
+  private async _executeYtDlpJson(url: string): Promise<any> {
+    const browserCookie = (process.env.COOKIES_FROM_BROWSER || '').trim().toLowerCase();
+    const rootCookies = path.join(process.cwd(), 'cookies.txt');
+    const backendCookies = path.join(process.cwd(), 'backend', 'cookies.txt');
 
-      const args = [
+    const cookieArgs: string[] = [];
+    if (browserCookie && browserCookie.length > 0) {
+      cookieArgs.push('--cookies-from-browser', browserCookie);
+    } else if (fs.existsSync(rootCookies)) {
+      cookieArgs.push('--cookies', rootCookies);
+    } else if (fs.existsSync(backendCookies)) {
+      cookieArgs.push('--cookies', backendCookies);
+    }
+
+    const attempts: string[][] = [
+      [
         '--dump-single-json',
         '--flat-playlist',
         '--no-warnings',
         '--js-runtimes', 'node',
-        '--remote-components', 'ejs:github'
-      ];
+        '--remote-components', 'ejs:github',
+        ...cookieArgs,
+        url
+      ],
+      [
+        '--dump-single-json',
+        '--flat-playlist',
+        '--no-warnings',
+        '--js-runtimes', 'node',
+        '--remote-components', 'ejs:github',
+        '--extractor-args', 'youtube:player_client=android,mweb',
+        ...cookieArgs,
+        url
+      ],
+      [
+        '--dump-single-json',
+        '--flat-playlist',
+        '--no-warnings',
+        '--js-runtimes', 'node',
+        '--remote-components', 'ejs:github',
+        '--extractor-args', 'youtube:player_client=ios,web',
+        ...cookieArgs,
+        url
+      ]
+    ];
 
-      if (browserCookie && browserCookie.length > 0) {
-        args.push('--cookies-from-browser', browserCookie);
-      } else if (fs.existsSync(rootCookies)) {
-        args.push('--cookies', rootCookies);
-      } else if (fs.existsSync(backendCookies)) {
-        args.push('--cookies', backendCookies);
+    let lastError: any = null;
+    for (const args of attempts) {
+      try {
+        const result = await this._spawnYtDlpJson(args);
+        if (result) return result;
+      } catch (err: any) {
+        lastError = err;
       }
+    }
 
-      args.push(url);
+    throw lastError || new Error('Gagal mengeksekusi yt-dlp.');
+  }
 
+  private _spawnYtDlpJson(args: string[]): Promise<any> {
+    return new Promise((resolve, reject) => {
       const proc = spawn(this.executable, args);
       let stdout = '';
       let stderr = '';
