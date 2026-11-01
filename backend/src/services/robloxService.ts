@@ -58,9 +58,14 @@ export interface UploadAssetParams {
   apiKey: string;
   creatorId: string;
   creatorType?: 'user' | 'group';
+  durationSec?: number;
 }
 
-export async function uploadAudioAsset({ filePath, displayName, description = '', apiKey, creatorId, creatorType = 'user' }: UploadAssetParams): Promise<RobloxUploadResult> {
+export async function uploadAudioAsset({ filePath, displayName, description = '', apiKey, creatorId, creatorType = 'user', durationSec }: UploadAssetParams): Promise<RobloxUploadResult> {
+  if (durationSec && durationSec > 420) {
+    throw new Error('Durasi audio melebihi batas maksimum 7 menit untuk Roblox Open Cloud.');
+  }
+
   if (!fsSync.existsSync(filePath)) {
     throw new Error(`File audio tidak ditemukan di path: ${filePath}`);
   }

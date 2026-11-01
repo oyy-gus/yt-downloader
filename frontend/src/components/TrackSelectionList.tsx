@@ -117,8 +117,17 @@ export default function TrackSelectionList({
 
   if (!tracks || tracks.length === 0) return null;
 
-  const allSelected = tracks.length > 0 && selectedIds.length === tracks.length;
+  const eligibleTracks = targetAction === 'roblox'
+    ? tracks.filter(t => !t.durationSec || t.durationSec <= 420)
+    : tracks;
+  const allSelected = eligibleTracks.length > 0 && eligibleTracks.every(t => selectedIds.includes(t.id));
   const customCount = Object.keys(customMetadata).length;
+  const eligibleSelectedCount = targetAction === 'roblox'
+    ? selectedIds.filter(id => {
+        const t = tracks.find(x => x.id === id);
+        return !t || !t.durationSec || t.durationSec <= 420;
+      }).length
+    : selectedIds.length;
 
   const handleApplyBatch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -218,7 +227,7 @@ export default function TrackSelectionList({
           <button
             type="button"
             id="btn-process-selected"
-            disabled={selectedIds.length === 0 || isStartingJob}
+            disabled={eligibleSelectedCount === 0 || isStartingJob}
             onClick={onStartJob}
             className={`px-5 py-2 rounded-full text-xs font-bold flex items-center gap-2 transition disabled:opacity-50 cursor-pointer ${
               targetAction === 'roblox'
@@ -233,12 +242,21 @@ export default function TrackSelectionList({
             )}
             <span>
               {targetAction === 'roblox'
-                ? `Upload ke Roblox (${selectedIds.length})`
+                ? `Upload ke Roblox (${eligibleSelectedCount})`
                 : `Unduh Terpilih (${selectedIds.length})`}
             </span>
           </button>
         </div>
       </div>
+
+      {targetAction === 'roblox' && (
+        <div className="rounded-2xl bg-amber-500/10 border border-amber-500/25 p-3.5 flex items-center gap-3 text-xs text-amber-300">
+          <CloudUpload className="w-4 h-4 shrink-0 text-amber-400" />
+          <p className="flex-1">
+            <strong>Filter Durasi Roblox Aktif:</strong> Batas durasi audio Roblox Open Cloud adalah 7 menit (420 detik). Lagu di atas 7 menit otomatis dikecualikan.
+          </p>
+        </div>
+      )}
 
       {showMetadataEditor && (
         <div className="rounded-2xl border border-white/[0.08] bg-[#12131b] p-5 space-y-4">
@@ -401,30 +419,34 @@ export default function TrackSelectionList({
           const isSelected = selectedIds.includes(track.id);
           const isExpanded = expandedTrackId === track.id;
           const effective = getEffectiveTrackData(track, index);
+          const isOverRobloxLimit = targetAction === 'roblox' && !!(track.durationSec && track.durationSec > 420);
           const override = customMetadata[track.id] || {};
 
           return (
             <div
               key={track.id}
               className={`rounded-2xl border transition flex flex-col ${
-                isSelected
+                isOverRobloxLimit
+                  ? 'bg-white/[0.01] border-white/[0.03] opacity-50'
+                  : isSelected
                   ? 'bg-white/[0.04] border-white/[0.12]'
                   : 'bg-white/[0.015] border-white/[0.04] opacity-75 hover:opacity-100'
               }`}
             >
               <div
-                onClick={() => onToggleSelect(track.id)}
-                className="p-3.5 flex items-center gap-3.5 cursor-pointer"
+                onClick={() => !isOverRobloxLimit && onToggleSelect(track.id)}
+                className={`p-3.5 flex items-center gap-3.5 ${isOverRobloxLimit ? 'cursor-not-allowed' : 'cursor-pointer'}`}
               >
                 <button
                   type="button"
-                  className="text-neutral-400 hover:text-white shrink-0"
+                  disabled={isOverRobloxLimit}
+                  className={`shrink-0 ${isOverRobloxLimit ? 'opacity-30 cursor-not-allowed' : 'text-neutral-400 hover:text-white'}`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onToggleSelect(track.id);
+                    if (!isOverRobloxLimit) onToggleSelect(track.id);
                   }}
                 >
-                  {isSelected ? (
+                  {isSelected && !isOverRobloxLimit ? (
                     <CheckSquare className="w-5 h-5 text-[#1ed760]" />
                   ) : (
                     <Square className="w-5 h-5 text-neutral-600" />
@@ -508,6 +530,12 @@ export default function TrackSelectionList({
                     {effective.isCustom && (
                       <span className="music-pill bg-[#1ed760]/15 text-emerald-300 border border-[#1ed760]/30">
                         Tag Khusus
+                      </span>
+                    )}
+
+                    {isOverRobloxLimit && (
+                      <span className="music-pill bg-rose-500/15 text-rose-300 border border-rose-500/30 font-medium">
+                        &gt; 7 Mnt (Lewati Roblox)
                       </span>
                     )}
                   </div>

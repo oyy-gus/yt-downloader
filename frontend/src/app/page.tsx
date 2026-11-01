@@ -107,9 +107,27 @@ export default function Home() {
     }
   };
 
+  const handleTargetActionChange = (action: TargetAction) => {
+    setTargetAction(action);
+    if (action === 'roblox' && analysisResult?.tracks) {
+      setSelectedTrackIds(prev => prev.filter(id => {
+        const t = analysisResult.tracks.find(x => x.id === id);
+        return !t || !t.durationSec || t.durationSec <= 420;
+      }));
+    }
+  };
+
   const handleSelectAll = () => {
     if (analysisResult?.tracks) {
-      setSelectedTrackIds(analysisResult.tracks.map(t => t.id));
+      if (targetAction === 'roblox') {
+        setSelectedTrackIds(
+          analysisResult.tracks
+            .filter(t => !t.durationSec || t.durationSec <= 420)
+            .map(t => t.id)
+        );
+      } else {
+        setSelectedTrackIds(analysisResult.tracks.map(t => t.id));
+      }
     }
   };
 
@@ -166,6 +184,23 @@ export default function Home() {
     setIsStartingJob(true);
     setErrorMsg(null);
 
+    const effectiveTrackIds = targetAction === 'roblox' && analysisResult?.tracks
+      ? selectedTrackIds.filter(id => {
+          const t = analysisResult.tracks.find(x => x.id === id);
+          return !t || !t.durationSec || t.durationSec <= 420;
+        })
+      : selectedTrackIds;
+
+    if (effectiveTrackIds.length === 0) {
+      if (targetAction === 'roblox') {
+        setErrorMsg('Tidak ada lagu yang memenuhi syarat (durasi maksimal 7 menit untuk Roblox).');
+      } else {
+        setErrorMsg('Pilih minimal satu lagu untuk diproses.');
+      }
+      setIsStartingJob(false);
+      return;
+    }
+
     try {
       const res = await apiFetch(`/jobs`, {
         method: 'POST',
@@ -178,7 +213,7 @@ export default function Home() {
           pitch: settings.pitch,
           targetAction,
           robloxConfig: targetAction === 'roblox' ? robloxConfig : undefined,
-          selectedTrackIds,
+          selectedTrackIds: effectiveTrackIds,
           customMetadata: Object.keys(customMetadata).length > 0 ? customMetadata : undefined
         })
       });
@@ -268,7 +303,7 @@ export default function Home() {
           settings={settings}
           setSettings={setSettings}
           targetAction={targetAction}
-          setTargetAction={setTargetAction}
+          setTargetAction={handleTargetActionChange}
           robloxConfig={robloxConfig}
           setRobloxConfig={setRobloxConfig}
         />

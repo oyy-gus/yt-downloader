@@ -292,7 +292,7 @@ export default function UrlInputPanel({
                   )}
                 </div>
                 <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
-                  Otomatis terbitkan audio ke akun Roblox Anda via Open Cloud API (tanpa download).
+                  Otomatis upload ke akun Roblox Anda via Open Cloud API (khusus lagu &le; 7 menit).
                 </p>
               </div>
             </button>
@@ -382,6 +382,10 @@ export default function UrlInputPanel({
                 </span>
               )}
             </div>
+
+            <p className="text-[11px] text-amber-300/80 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl">
+              Filter Durasi: Batas resmi audio Roblox adalah 7 menit (420 detik). Lagu dengan durasi lebih dari 7 menit otomatis tidak akan ikut diunggah.
+            </p>
           </div>
         )}
 

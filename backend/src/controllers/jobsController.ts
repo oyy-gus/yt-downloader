@@ -50,6 +50,20 @@ export async function createJobHandler(req: Request, res: Response, next: NextFu
 
     const metadata = await youtubeProvider.analyzeUrl(urlValidation);
 
+    if (targetAction === 'roblox') {
+      const rawEntries = metadata.entries || [];
+      const requested = selectedTrackIds && selectedTrackIds.length > 0
+        ? rawEntries.filter((e: any) => selectedTrackIds.includes(e.id))
+        : rawEntries;
+      const eligible = requested.filter((e: any) => !e.durationSec || e.durationSec <= 420);
+      if (eligible.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Tidak ada lagu yang dapat diunggah ke Roblox karena seluruh lagu yang dipilih melebihi batas durasi 7 menit.'
+        });
+      }
+    }
+
     const jobId = uuidv4();
     const job = jobQueue.createJob({
       id: jobId,

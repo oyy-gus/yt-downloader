@@ -38,9 +38,13 @@ export class JobQueue extends EventEmitter {
 
     const cleaner = new TitleCleanerEngine();
     const rawEntries = metadata.entries || [];
-    const entriesToProcess = selectedTrackIds && selectedTrackIds.length > 0
+    let entriesToProcess = selectedTrackIds && selectedTrackIds.length > 0
       ? rawEntries.filter(e => selectedTrackIds.includes(e.id))
       : rawEntries;
+
+    if (targetAction === 'roblox') {
+      entriesToProcess = entriesToProcess.filter(e => !e.durationSec || e.durationSec <= 420);
+    }
 
     const tracks: TrackItem[] = entriesToProcess.map((entry, index) => {
       const cleanResult = cleaner.clean(entry.title, {
@@ -293,6 +297,14 @@ export class JobQueue extends EventEmitter {
       if (job.status === 'cancelled') break;
 
       const track = job.tracks[i];
+      if (job.targetAction === 'roblox' && track.durationSec && track.durationSec > 420) {
+        track.status = 'failed';
+        track.error = 'Dilewati: Durasi lagu melebihi batas 7 menit untuk Roblox';
+        track.progressPct = 100;
+        job.failedTracks++;
+        this.broadcastJobEvent(job, { event: 'track_error', trackId: track.id, error: track.error });
+        continue;
+      }
       track.status = 'processing';
       track.progressPct = 25;
       this.broadcastJobEvent(job, { event: 'track_progress', trackId: track.id });
@@ -332,7 +344,8 @@ export class JobQueue extends EventEmitter {
             description: `Audio: ${track.cleanedTitle}${track.artist ? ' - ' + track.artist : ''}`,
             apiKey: job.robloxConfig?.apiKey,
             creatorId: job.robloxConfig?.creatorId,
-            creatorType: job.robloxConfig?.creatorType || 'user'
+            creatorType: job.robloxConfig?.creatorType || 'user',
+            durationSec: track.durationSec
           });
 
           track.robloxAssetId = uploadResult.assetId;

@@ -85,4 +85,52 @@ describe('JobQueue Custom Metadata Support', () => {
 
     queue.cancelJob(job.id);
   });
+
+  test('Filters out tracks exceeding 7 minutes (420s) when targetAction is roblox', () => {
+    const queue = new JobQueue(1);
+    const mixedMetadata = {
+      isDemo: true,
+      type: 'playlist' as const,
+      title: 'Duration Test',
+      totalEntries: 2,
+      entries: [
+        {
+          id: 'short-track',
+          title: 'Singer - Short Track',
+          artist: 'Singer',
+          durationSec: 300,
+          thumbnail: 'https://example.com/short.jpg',
+          url: 'https://www.youtube.com/watch?v=short'
+        },
+        {
+          id: 'long-track',
+          title: 'Singer - Long Track Mix',
+          artist: 'Singer',
+          durationSec: 500,
+          thumbnail: 'https://example.com/long.jpg',
+          url: 'https://www.youtube.com/watch?v=long'
+        }
+      ]
+    };
+
+    const robloxJob = queue.createJob({
+      id: 'job-roblox-filter-test',
+      type: 'playlist',
+      url: 'https://www.youtube.com/playlist?list=PL123',
+      metadata: mixedMetadata,
+      settings: {
+        cleanerMode: 'Advanced',
+        format: 'mp3',
+        quality: '320',
+        pitch: 0
+      },
+      targetAction: 'roblox',
+      robloxConfig: { apiKey: 'test', creatorId: '123' },
+      selectedTrackIds: ['short-track', 'long-track']
+    });
+
+    assert.strictEqual(robloxJob.tracks.length, 1);
+    assert.strictEqual(robloxJob.tracks[0].id, 'short-track');
+    queue.cancelJob(robloxJob.id);
+  });
 });

@@ -51,6 +51,7 @@ sound:Play()
 
 ### 3. Integrasi Langsung Roblox Open Cloud API
 Selain mengunduh audio ke komputer lokal, pengguna dapat memilih mode pengunggahan langsung ke Roblox tanpa memakan ruang penyimpanan lokal:
+- **Filter Durasi Otomatis**: Hanya mengunggah lagu berdurasi 7 menit (420 detik) atau di bawahnya sesuai batas resmi Roblox Open Cloud. Lagu yang berdurasi lebih dari 7 menit otomatis dikecualikan.
 - Menggunakan endpoint resmi `https://apis.roblox.com/assets/v1/assets`.
 - Mendukung autentikasi API Key Roblox dengan Creator ID berbasis akun pengguna (*User*) maupun grup (*Group*).
 - Status operasi asinkron dipantau secara otomatis hingga aset audio berstatus `Success` dan menghasilkan Asset ID resmi.

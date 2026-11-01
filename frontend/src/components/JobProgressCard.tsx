@@ -142,8 +142,8 @@ export default function JobProgressCard({ job, onCancelJob, onDownloadTrack, onD
                 </p>
 
                 {track.error && (
-                  <p className="text-[11px] text-rose-400 font-medium truncate" title={track.error}>
-                    Gagal: {track.error}
+                  <p className={`text-[11px] font-medium truncate ${track.error.startsWith('Dilewati') ? 'text-amber-400' : 'text-rose-400'}`} title={track.error}>
+                    {track.error.startsWith('Dilewati') ? track.error : `Gagal: ${track.error}`}
                   </p>
                 )}
               </div>
