@@ -1,28 +1,18 @@
-# Dependencies
 node_modules/
 .pnpm-store/
-
-# Next.js build output
 frontend/.next/
 frontend/out/
-
-# Environment variables
 .env
 .env.local
 .env.*.local
 backend/.env
-
-# Temporary media files, test outputs and logs
 tmp/
 backend/tmp/
 *.log
 analyze_res.json
 tmp_*.json
-
-# Executables
 *.exe
 backend/*.exe
-
-# System files
 .DS_Store
 Thumbs.db
+cookies.txt
