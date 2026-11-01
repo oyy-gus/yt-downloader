@@ -33,7 +33,7 @@ export async function validateRobloxCredentials({ apiKey, creatorId, creatorType
     if (res.status === 401 || res.status === 403) {
       return { 
         isValid: false, 
-        reason: 'API Key tidak valid atau tidak memiliki izin Assets:Read / Assets:Write di Roblox Open Cloud.' 
+        reason: 'User not authenticated: Pastikan API Key benar, memiliki izin Assets (Read & Write) di Roblox Creator Hub, dan IP tidak dibatasi (gunakan 0.0.0.0/0).' 
       };
     }
 
@@ -116,7 +116,12 @@ export async function uploadAudioAsset({ filePath, displayName, description = ''
   const uploadData = await uploadRes.json().catch(() => ({})) as any;
 
   if (!uploadRes.ok) {
-    const errMsg = uploadData.message || uploadData.error || `HTTP ${uploadRes.status}`;
+    let errMsg = uploadData.message || uploadData.error || `HTTP ${uploadRes.status}`;
+    if (uploadRes.status === 401 || String(errMsg).toLowerCase().includes('not authenticated')) {
+      errMsg = 'User not authenticated (Pastikan API Key memiliki izin Assets:Write di Roblox Creator Hub dan IP diizinkan: 0.0.0.0/0)';
+    } else if (uploadRes.status === 403 || String(errMsg).toLowerCase().includes('forbidden')) {
+      errMsg = 'Forbidden (API Key tidak memiliki izin menulis aset untuk Creator ID ini)';
+    }
     console.error(`[ROBLOX] Upload failed:`, errMsg);
     throw new Error(`Roblox Upload Gagal: ${errMsg}`);
   }
